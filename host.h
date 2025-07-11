@@ -5,6 +5,8 @@
 #ifndef __UNETD_HOST_H
 #define __UNETD_HOST_H
 
+#include "sntrup761.h"
+
 enum peer_endpoint_type {
 	ENDPOINT_TYPE_STATIC,
 	ENDPOINT_TYPE_PEX,
@@ -16,6 +18,8 @@ enum peer_endpoint_type {
 struct network_peer {
 	struct vlist_node node;
 	uint8_t key[CURVE25519_KEY_SIZE];
+	uint8_t pqc_key[SNTRUP761_PUB_SIZE];
+	uint8_t psk[32];
 	union network_addr local_addr;
 	const char *endpoint;
 	struct blob_attr *ipaddr;

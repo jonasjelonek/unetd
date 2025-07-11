@@ -51,6 +51,7 @@ struct network {
 		int pex_port;
 		bool local_host_changed;
 		struct blob_attr *stun_list;
+		uint8_t psk[32];
 	} net_config;
 
 	void *net_data;

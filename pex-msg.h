@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include "curve25519.h"
+#include "sntrup761.h"
 #include "siphash.h"
 #include "utils.h"
 
@@ -27,6 +28,9 @@ enum pex_opcode {
 	PEX_MSG_ENDPOINT_PORT_NOTIFY,
 	PEX_MSG_ENROLL,
 	PEX_MSG_UPDATE_RESPONSE_REFUSED,
+
+	PEX_MSG_PSK_KEX_REQUEST,
+	PEX_MSG_PSK_KEX_RESPONSE,
 };
 
 #define PEX_ID_LEN		8
@@ -99,6 +103,21 @@ struct pex_msg_local_control {
 	uint8_t auth_id[PEX_ID_LEN];
 	union network_endpoint ep;
 	int timeout;
+};
+
+enum pex_psk_kex_cipher {
+    NONE = 0,
+    SNTRUP761,
+};
+
+struct pex_psk_kex_req {
+    enum pex_psk_kex_cipher cipher;
+};
+
+struct pex_psk_kex_res {
+    bool has_key;
+    enum pex_psk_kex_cipher cipher;
+    uint8_t pubkey[SNTRUP761_PUB_SIZE];
 };
 
 struct pex_hdr *pex_rx_accept(void *data, size_t len, bool ext);
