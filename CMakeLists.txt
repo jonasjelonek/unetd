@@ -5,7 +5,7 @@ PROJECT(unetd C)
 
 SET(SOURCES
 	main.c network.c host.c service.c
-	pex.c pex-stun.c
+	pex.c pex-stun.c psk-kex.c
 	wg.c wg-user.c
 )
 
