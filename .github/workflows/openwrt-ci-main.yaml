@@ -11,7 +11,7 @@ concurrency:
 
 env:
   CI_ENABLE_UNIT_TESTING: 0
-  CI_TARGET_BUILD_DEPENDS: libnl-tiny
+  CI_TARGET_BUILD_DEPENDS: libnl-tiny libubox
   CI_CMAKE_EXTRA_BUILD_ARGS: -DVXLAN_SUPPORT=0 -DUBUS_SUPPORT=0
 
 jobs:
