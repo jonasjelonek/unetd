@@ -1,0 +1,34 @@
+name: OpenWrt CI main branch testing
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CI_ENABLE_UNIT_TESTING: 1
+  CI_TARGET_BUILD_DEPENDS: libnl-tiny ubus uci
+
+jobs:
+  native_testing:
+    name: Various native checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: ynezz/gh-actions-openwrt-ci-native@v0.0.2
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: native-build-artifacts
+          if-no-files-found: ignore
+          path: |
+            build/scan
+            tests/cram/**/*.t.err
