@@ -332,11 +332,15 @@ void network_pex_init(struct network *net)
 {
 	struct network_pex *pex = &net->pex;
 
+	printf("in %s\n", __func__);
+
 	memset(pex, 0, sizeof(*pex));
 	pex->fd.fd = -1;
 	INIT_LIST_HEAD(&pex->hosts);
 	pex->request_update_timer.cb = network_pex_request_update_cb;
 	pex->request_psk_kex_status_timer.cb = psk_kex_request_status_cb;
+
+	printf("%s done\n", __func__);
 }
 
 static void
@@ -815,6 +819,7 @@ network_pex_open_auth_connect(struct network *net)
 		return;
 
 	uloop_timeout_set(&pex->request_update_timer, 5000);
+	uloop_timeout_set(&pex->request_psk_kex_status_timer, 5000);
 
 	vlist_for_each_element(&net->peers, peer, node) {
 		union network_endpoint ep = {};

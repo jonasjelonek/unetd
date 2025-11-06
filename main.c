@@ -172,6 +172,8 @@ int main(int argc, char **argv)
 	const char *unix_socket = NULL;
 	int ch;
 
+	printf("starting unetd\n");
+
 	while ((ch = getopt(argc, argv, "D:dh:u:M:N:P:")) != -1) {
 		switch (ch) {
 		case 'D':
@@ -202,6 +204,7 @@ int main(int argc, char **argv)
 	}
 
 	uloop_init();
+	printf("%s: after uloop_init\n", __func__);
 #ifdef UBUS_SUPPORT
 	udebug_init(&ud);
 	udebug_auto_connect(&ud, NULL);
@@ -210,14 +213,23 @@ int main(int argc, char **argv)
 #endif
 
 	gen_kex_hash();
+	printf("%s: after gen_kex_hash\n", __func__);
 	unetd_ubus_init();
+	printf("%s: after unetd_ubus_init\n", __func__);
 	unetd_write_hosts();
+	printf("%s: after unetd_write_hosts\n", __func__);
 	global_pex_open(unix_socket);
+	printf("%s: after global_pex_open\n", __func__);
 	add_networks();
+	printf("%s: after add_networks\n", __func__);
 	uloop_run();
+	printf("%s:after uloop_run\n", __func__);
 	pex_close();
+	printf("%s: after pex_close\n", __func__);
 	network_free_all();
+	printf("%s: after network_free_all\n", __func__);
 	uloop_done();
+	printf("%s: after uloop_done\n", __func__);
 
 	return 0;
 }

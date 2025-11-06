@@ -21,7 +21,7 @@
 #include "libubox/vlist.h"
 
 #define KEX_LABEL		"WG PQ PSK sntrup761"
-#define HANDSHAKE_INTERVAL 	120
+#define HANDSHAKE_INTERVAL 	5000	// 120000
 
 static uint8_t kex_hash[SHA512_HASH_SIZE];
 
@@ -30,6 +30,9 @@ static enum psk_kex_role
 psk_kex_determine_role(struct network *net, struct network_peer *peer)
 {
 	int cmp = memcmp(net->config.pubkey, peer->key, CURVE25519_KEY_SIZE);
+
+	printf("in %s\n", __func__);
+
 	if (cmp > 0) {
 		return PSK_KEX_ROLE_INITIATOR;
 	} else if (cmp < 0) {
@@ -44,6 +47,8 @@ psk_kex_keygen(uint8_t *dest, const void *src, size_t len)
 {
 	struct sha512_state s;
 
+	printf("in %s\n", __func__);
+
 	sha512_init(&s);
 	sha512_add(&s, kex_hash, sizeof(kex_hash));
 	sha512_add(&s, src, len);
@@ -55,6 +60,8 @@ psk_kex_encrypt(uint8_t *dest, size_t len, uint8_t *mac, const uint8_t *nonce, c
 {
 	siphash_key_t mac_key;
 
+	printf("in %s\n", __func__);
+
 	memcpy(&mac_key, key, sizeof(mac_key));
 	chacha20_encrypt_msg(dest, len, nonce, key);
 	siphash_to_le64(mac, dest, len, &mac_key);
@@ -65,6 +72,8 @@ psk_kex_decrypt(uint8_t *dest, size_t len, const uint8_t *mac, const uint8_t *no
 {
 	uint8_t check_mac[MAC_LEN];
 	siphash_key_t mac_key;
+
+	printf("in %s\n", __func__);
 
 	memcpy(&mac_key, key, sizeof(mac_key));
 	siphash_to_le64(check_mac, dest, len, &mac_key);
@@ -79,6 +88,8 @@ static void
 psk_kex_derive_psk(struct psk_kex_ctx *ctx, uint8_t *psk)
 {
 	struct sha512_state sha;
+
+	printf("in %s\n", __func__);
 
 	sha512_init(&sha);
 	sha512_add(&sha, kex_hash, sizeof(kex_hash));
@@ -95,6 +106,8 @@ psk_kex_need_handshake(struct network_peer *peer)
 	time_t now = time(NULL);
 	uint64_t last = peer->state.last_psk_handshake;
 
+	printf("in %s\n", __func__);
+
 	return last == 0 || now - last > HANDSHAKE_INTERVAL;
 }
 
@@ -103,6 +116,7 @@ void psk_kex_request_status_cb(struct uloop_timeout *t)
 	struct network *net = container_of(t, struct network, pex.request_psk_kex_status_timer);
 	struct network_peer *peer;
 
+	printf("in %s\n", __func__);
 	D_NET(net, "in %s", __func__);
 
 	uloop_timeout_set(t, HANDSHAKE_INTERVAL);
@@ -123,6 +137,7 @@ psk_kex_send_msg(struct network *net, struct network_peer *peer)
 	// FIXME: is it fine to just use the first valid address
 	// 	or use the "most appropriate" one
 	// 	or send to all unique endpoint addresses??
+	printf("in %s\n", __func__);
 
 	for (int i = 0; i < __ENDPOINT_TYPE_MAX; i++) {
 		union network_endpoint *ep = &peer->state.next_endpoint[i];
@@ -152,6 +167,8 @@ psk_kex_request_status(struct network *net, struct network_peer *peer)
 	if (peer->kex_ctx.state != KEX_STATE_IDLE)
 		return;
 
+	printf("in %s\n", __func__);
+
 	pex_msg_init_ext(net, PEX_MSG_PSK_KEX_STATUS_REQUEST, true);
 	resp = pex_msg_append(sizeof(struct pex_psk_kex_status));
 	resp->last_handshake_time = peer->state.last_psk_handshake;
@@ -171,8 +188,12 @@ psk_kex_start_key_exchange(struct network *net, struct network_peer *peer)
 	struct psk_kex_ctx *ctx = &peer->kex_ctx;
 	uint8_t key[CHACHA20_KEY_SIZE];
 
+	printf("in %s\n", __func__);
+
 	if (peer->kex_ctx.role != PSK_KEX_ROLE_INITIATOR)
 		return;
+
+	D_PEER(net, peer, "starting key exchange");
 
 	/* First message (contains c1) */
 	pex_msg_init_ext(net, PEX_MSG_PSK_KEX_INITIATOR_MSG_PART1, true);
@@ -185,6 +206,7 @@ psk_kex_start_key_exchange(struct network *net, struct network_peer *peer)
 	sntrup761_enc(msg_a->c1, ctx->k1, peer->pqc_pub);
 	psk_kex_keygen(key, ctx->k1, sizeof(ctx->k1));
 
+	D_PEER(net, peer, "sending first message to peer");
 	psk_kex_send_msg(net, peer);
 
 	/* Second message (contains encrypted ephemeral public key) */
@@ -195,6 +217,7 @@ psk_kex_start_key_exchange(struct network *net, struct network_peer *peer)
 	memcpy(&msg_b->e_pub_enc, ctx->e_pub, sizeof(ctx->e_pub)); /* Copy the ephemeral public key to buf */
 	psk_kex_encrypt(msg_b->e_pub_enc, sizeof(msg_b->e_pub_enc), msg_b->e_pub_mac, msg_b->nonce, key); /* Encrypt + MAC the ephemeral public key */
 
+	D_PEER(net, peer, "sending second message to peer");
 	psk_kex_send_msg(net, peer);
 
 	peer->kex_ctx.state = KEX_STATE_WAITING_FOR_RESPONDER_MSG_PART1;
@@ -206,6 +229,8 @@ psk_kex_finish_key_exchange(struct network *net, struct network_peer *peer)
 {
 	struct psk_kex_ctx *ctx = &peer->kex_ctx;
 	enum psk_kex_role role;
+
+	printf("in %s\n", __func__);
 
 	psk_kex_derive_psk(ctx, peer->psk);
 
@@ -224,6 +249,9 @@ psk_kex_recv_status_msg(struct network *net, struct network_peer *peer,
 	struct pex_psk_kex_status *resp;
 	struct psk_kex_ctx *ctx = &peer->kex_ctx;
 	bool we_need_handshake, peer_needs_handshake;
+
+	printf("in %s\n", __func__);
+	D_PEER(net, peer, "received status message opcode %d", opcode);
 
 	switch (opcode) {
 	case PEX_MSG_PSK_KEX_STATUS_REQUEST:
@@ -278,6 +306,8 @@ psk_kex_recv_initiator_msg_part1(struct network *net, struct network_peer *peer,
 {
 	struct psk_kex_ctx *ctx = &peer->kex_ctx;
 
+	printf("in %s\n", __func__);
+
 	if (ctx->role != PSK_KEX_ROLE_RESPONDER)
 		return;
 
@@ -293,6 +323,8 @@ psk_kex_recv_initiator_msg_part2(struct network *net, struct network_peer *peer,
 	struct psk_kex_ctx *ctx = &peer->kex_ctx;
 	uint8_t nonce[CHACHA20_NONCE_SIZE];
 	uint8_t key[CHACHA20_KEY_SIZE];
+
+	printf("in %s\n", __func__);
 
 	if (ctx->role != PSK_KEX_ROLE_RESPONDER || ctx->state != KEX_STATE_WAITING_FOR_INITIATOR)
 		return;
@@ -339,6 +371,8 @@ psk_kex_recv_responder_msg(struct network *net, struct network_peer *peer,
 	struct psk_kex_ctx *ctx = &peer->kex_ctx;
 	uint8_t key[CHACHA20_KEY_SIZE];
 
+	printf("in %s\n", __func__);
+
 	switch (opcode) {
 	case PEX_MSG_PSK_KEX_RESPONDER_MSG_PART1:
 		if (ctx->state != KEX_STATE_WAITING_FOR_RESPONDER_MSG_PART1)
@@ -370,8 +404,12 @@ psk_kex_recv_responder_msg(struct network *net, struct network_peer *peer,
 
 void psk_kex_recv_msg(struct network *net, struct network_peer *peer, enum pex_opcode opcode, const void *data, size_t len)
 {
+	printf("in %s\n", __func__);
+
 	if (peer->kex_ctx.role == PSK_KEX_ROLE_NONE)
 		return;
+
+	D_PEER(net, peer, "received pex psk-kex message");
 
 	switch (opcode) {
 	case PEX_MSG_PSK_KEX_STATUS_REQUEST:
@@ -408,6 +446,8 @@ void gen_kex_hash(void)
 {
 	struct sha512_state s;
 
+	printf("in %s\n", __func__);
+
 	sha512_init(&s);
 	sha512_add(&s, KEX_LABEL, sizeof(KEX_LABEL) - 1);
 	sha512_final(&s, kex_hash);
@@ -415,6 +455,8 @@ void gen_kex_hash(void)
 
 void init_psk_kex_ctx(struct network *net, struct network_peer *peer)
 {
+	printf("in %s\n", __func__);
+
 	memset(&peer->kex_ctx, 0, sizeof(peer->kex_ctx));
 
 	peer->kex_ctx.role = psk_kex_determine_role(net, peer);

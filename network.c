@@ -710,6 +710,7 @@ network_alloc(const char *name)
 {
 	struct network *net;
 	char *name_buf;
+	printf("in %s\n", __func__);
 
 	net = calloc_a(sizeof(*net), &name_buf, strlen(name) + 1);
 	net->node.key = strcpy(name_buf, name);
@@ -717,9 +718,13 @@ network_alloc(const char *name)
 	avl_insert(&networks, &net->node);
 
 	network_pex_init(net);
+	printf("%s: after network_pex_init\n", __func__);
 	network_stun_init(net);
+	printf("%s: after network_stun_init\n", __func__);
 	network_hosts_init(net);
+	printf("%s: after network_hosts_init\n", __func__);
 	network_services_init(net);
+	printf("%s: after network_services_init\n", __func__);
 
 	return net;
 }
