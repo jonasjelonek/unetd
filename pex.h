@@ -8,10 +8,12 @@
 #include <sys/socket.h>
 #include <libubox/uloop.h>
 #include "stun.h"
+#include "utils.h"
 
 #define NETWORK_PEX_HOSTS_LIMIT	128
 
 struct network;
+struct network_peer;
 
 struct network_pex_host {
 	struct list_head list;
@@ -27,6 +29,7 @@ struct network_pex {
 	struct list_head hosts;
 	int num_hosts;
 	struct uloop_timeout request_update_timer;
+	struct uloop_timeout request_psk_kex_status_timer;
 };
 
 enum network_stun_state {
@@ -98,5 +101,10 @@ static inline bool network_pex_active(struct network_pex *pex)
 }
 
 int global_pex_open(const char *unix_path);
+
+struct pex_hdr *pex_msg_init(struct network *net, uint8_t opcode);
+struct pex_hdr *pex_msg_init_ext(struct network *net, uint8_t opcode, bool ext);
+void pex_msg_send_ext(struct network *net, struct network_peer *peer,
+					  struct sockaddr_in6 *addr);
 
 #endif
